@@ -1,71 +1,71 @@
-# Clients Potentiels CTIS
+# CTIS Sponsor Prospects
 
-Dashboard de prospection qui identifie les promoteurs d'essais cliniques les plus actifs en Europe, à partir du registre public **CTIS** (EU Clinical Trials Information System). Il sert à prioriser les clients potentiels d'une plateforme de gestion d'essais cliniques.
+A prospecting dashboard that identifies the most active clinical trial sponsors in Europe, based on the public **CTIS** register (EU Clinical Trials Information System). It is used to prioritise potential clients for a clinical trial management platform.
 
-Le dashboard est une page HTML autonome : toutes les données y sont intégrées, il suffit d'ouvrir `docs/index.html` dans un navigateur (connexion internet requise pour les polices et la bibliothèque de graphiques).
+The dashboard is a self-contained HTML page with all data embedded: open `docs/index.html` in a browser (an internet connection is needed for the fonts and the charting library).
 
-## Contenu
+## Contents
 
 ```
-data/CTIS_trials_20261104.csv   Export brut du registre CTIS (10 000 essais, 4 novembre 2026)
-docs/index.html                 Dashboard généré (à ouvrir dans un navigateur)
-docs/fusions_promoteurs.csv     Noms de promoteurs fusionnés, pour relecture
-scripts/build_dashboard.py      Génère docs/ à partir de l'export CSV
-scripts/sponsor_groups.py       Règles de fusion des promoteurs
-scripts/synonyms.py             Correspondances marque commerciale ↔ molécule (DCI)
-src/template.html               Gabarit du dashboard (HTML, CSS, JavaScript)
+data/CTIS_trials_20261104.csv   Raw CTIS register export (10,000 trials, 4 November 2026)
+docs/index.html                 Generated dashboard (open in a browser)
+docs/fusions_promoteurs.csv     Merged sponsor names, for review
+scripts/build_dashboard.py      Builds docs/ from the CSV export
+scripts/sponsor_groups.py       Sponsor merging rules
+scripts/synonyms.py             Brand name ↔ molecule (INN) mappings
+src/template.html               Dashboard template (HTML, CSS, JavaScript)
 ```
 
-## Fonctionnalités
+## Features
 
-- **Indicateurs et graphiques** recalculés selon les filtres : promoteurs, essais, essais en recrutement, pays couverts ; top promoteurs, top pays, aires thérapeutiques, phases.
-- **Filtres au niveau des essais** : chaque promoteur est reclassé sur ses seuls essais correspondants.
-  - produit ou molécule (plusieurs termes séparés par des virgules, marques et molécules reliées) ;
-  - pays, aire thérapeutique, phase, statut, type de promoteur ;
-  - année d'autorisation, date de mise à jour, population, taille de l'essai, portée géographique, nombre de pays, résultats publiés ;
-  - nombre minimum / maximum d'essais, première administration chez l'homme, bioéquivalence, etc.
-- **Raccourcis** : petites biotechs actives, oncologie en France, immunothérapies anti-PD-1 / PD-L1, phases précoces, promoteurs académiques.
-- **Fiche promoteur** : entités regroupées, pays, aires, phases, produits et derniers essais.
-- **Export CSV** de la vue filtrée (promoteurs ou essais), séparateur `;`, compatible Excel.
+- **KPIs and charts** recomputed from the filters: sponsors, trials, recruiting trials, countries covered; top sponsors, top countries, therapeutic areas, phases.
+- **Trial-level filters**: each sponsor is re-ranked on its matching trials only.
+  - product or molecule (several terms separated by commas; brand names and molecules are linked);
+  - country, therapeutic area, phase, status, sponsor type;
+  - year authorised, last update, population, trial size, geographic scope, number of countries, published results;
+  - minimum / maximum number of trials, first administration to humans, bioequivalence, and more.
+- **Shortcuts**: small active biotechs, oncology in France, anti-PD-1 / PD-L1 immunotherapies, early phases, recruiting academic sponsors.
+- **Sponsor detail**: merged entities, countries, areas, phases, products and latest trials.
+- **CSV export** of the filtered view (sponsors or trials), comma-separated, UTF-8.
 
-## Régénérer le dashboard
+## Rebuilding the dashboard
 
-Aucune dépendance : Python 3.9 ou plus récent suffit.
+No dependencies: Python 3.9 or later is enough.
 
 ```bash
 python3 scripts/build_dashboard.py
 ```
 
-Le script prend l'export le plus récent de `data/` (`CTIS_trials_*.csv`) et réécrit `docs/index.html` et `docs/fusions_promoteurs.csv`. Pour un autre fichier :
+The script takes the most recent export in `data/` (`CTIS_trials_*.csv`) and rewrites `docs/index.html` and `docs/fusions_promoteurs.csv`. To use another file:
 
 ```bash
-python3 scripts/build_dashboard.py chemin/vers/export.csv
+python3 scripts/build_dashboard.py path/to/export.csv
 ```
 
-Pour mettre à jour les données : exporter les essais depuis [euclinicaltrials.eu](https://euclinicaltrials.eu) au même format CSV, le déposer dans `data/` sous le nom `CTIS_trials_AAAAMMJJ.csv`, puis relancer le script. Pensez aussi à mettre à jour la date d'extraction citée dans `src/template.html` (pied de page et constante `EXTRACT`).
+To update the data: export the trials from [euclinicaltrials.eu](https://euclinicaltrials.eu) in the same CSV format, save the file in `data/` as `CTIS_trials_YYYYMMDD.csv`, then run the script again. Also update the extraction date in `src/template.html` (footer and the `EXTRACT` constant).
 
-Pour modifier l'interface, éditer `src/template.html` (jamais `docs/index.html`, qui est écrasé à chaque génération).
+To change the interface, edit `src/template.html`, never `docs/index.html`, which is overwritten on every build.
 
-## Méthode
+## Method
 
-**Fusion des promoteurs** (`scripts/sponsor_groups.py`)
-1. Les variantes d'écriture d'une même entité sont regroupées automatiquement : casse, accents, ponctuation, suffixes juridiques (Inc., AG, GmbH, S.A.…).
-2. Les filiales d'un même groupe pharma sont regroupées selon une liste établie à la main (Sanofi, Johnson & Johnson / Janssen, Bristol Myers Squibb + Celgene, GSK, Boehringer Ingelheim…). MSD et Merck KGaA restent distincts.
-3. Un essai déposé par plusieurs filiales d'un même groupe n'est compté qu'une fois pour ce groupe.
+**Sponsor merging** (`scripts/sponsor_groups.py`)
+1. Spelling variants of the same entity are grouped automatically: case, accents, punctuation, legal suffixes (Inc., AG, GmbH, S.A.…).
+2. Subsidiaries of the same pharma group are grouped from a hand-made list (Sanofi, Johnson & Johnson / Janssen, Bristol Myers Squibb + Celgene, GSK, Boehringer Ingelheim…). MSD and Merck KGaA are kept separate.
+3. A trial filed by several subsidiaries of the same group counts once for that group.
 
-Résultat sur l'export du 4 novembre 2026 : 2 264 promoteurs, dont 89 regroupés.
+Result on the 4 November 2026 export: 2,264 sponsors, 89 of them merged groups.
 
-**Score client potentiel** : `(2 × essais + 4 × essais en recrutement) × 1,3` pour les laboratoires et l'industrie. C'est une heuristique de priorisation, pas un classement officiel.
+**Prospect score**: `(2 × trials + 4 × recruiting trials) × 1.3` for pharmaceutical companies and industry. It is a prioritisation heuristic, not an official ranking.
 
-**Participants** : les essais déclarant plus de 100 000 participants sont exclus des totaux (valeurs aberrantes).
+**Participants**: trials reporting more than 100,000 participants are left out of the totals as outliers.
 
-## Limites connues
+## Known limitations
 
-- L'export compte exactement 10 000 lignes, probablement la limite d'export du registre : les données ne sont sans doute pas exhaustives.
-- Le champ produit est vide pour 2 121 essais ; ils n'apparaissent pas quand un filtre produit est actif.
-- Le filtre produit retient aussi les essais où le produit sert de comparateur.
-- La correspondance marque ↔ molécule ne couvre qu'environ 140 médicaments courants (`scripts/synonyms.py`).
+- The export has exactly 10,000 rows, probably the register's export limit, so the data is likely incomplete.
+- The product field is empty for 2,121 trials; they never appear when a product filter is active.
+- The product filter also matches trials where the product is a comparator.
+- The brand ↔ molecule mapping covers only about 140 common drugs (`scripts/synonyms.py`).
 
-## Source des données
+## Data source
 
-Registre public CTIS de l'Agence européenne des médicaments : [euclinicaltrials.eu](https://euclinicaltrials.eu). Les données restent soumises aux conditions d'utilisation de l'EMA.
+Public CTIS register of the European Medicines Agency: [euclinicaltrials.eu](https://euclinicaltrials.eu). The data remains subject to the EMA's terms of use.

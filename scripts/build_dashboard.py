@@ -43,7 +43,7 @@ def phase_group(p):
     if '(phase iii)' in p: return 'Phase III'
     if '(phase ii)' in p: return 'Phase II'
     if '(phase i)' in p: return 'Phase I'
-    return 'Autre'
+    return 'Other'
 
 class Dict:
     def __init__(self): self.items = []; self.idx = {}
@@ -134,7 +134,7 @@ assert tpl.count('__DATA__') == 1
 body = tpl.replace('__DATA__', js)
 # document HTML complet : <title>/<style> dans le head, le reste dans le body
 cut = body.index('</style>') + len('</style>')
-html = ('<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="UTF-8">\n'
+html = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
         + body[:cut] + '\n</head>\n<body>\n' + body[cut:] + '\n</body>\n</html>\n')
 out = REPO / 'docs'
@@ -143,13 +143,13 @@ out.mkdir(exist_ok=True)
 
 # table de correspondance des fusions, pour relecture
 with open(out / 'fusions_promoteurs.csv', 'w', encoding='utf-8-sig', newline='') as f:
-    w = csv.writer(f, delimiter=';')
-    w.writerow(['Nom fusionné', 'Nom d’origine CTIS', 'Essais (nom d’origine)'])
+    w = csv.writer(f)
+    w.writerow(['Merged name', 'Original CTIS name', 'Trials (original name)'])
     for s_ in sorted(S, key=lambda s_: -len(s_['t'])):
         for n, c in s_.get('ent', []):
             w.writerow([s_['name'], n, c])
 
 print(f"Source : {SRC.name}")
 print(f"{len(T)} essais, {len(S)} promoteurs ({sum('ent' in s_ for s_ in S)} groupes fusionnés)")
-print(f"-> {out / 'index.html'} ({len(html) / 1e6:.1f} Mo)")
+print(f"-> {out / 'index.html'} ({len(html) / 1e6:.1f} MB)")
 print(f"-> {out / 'fusions_promoteurs.csv'}")

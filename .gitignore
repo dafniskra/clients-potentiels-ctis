@@ -11,6 +11,6 @@ venv/
 .vscode/
 .idea/
 
-# Exports CSV téléchargés depuis le dashboard
-promoteurs_ctis_*.csv
-essais_ctis_*.csv
+# CSV exports downloaded from the dashboard
+/ctis_sponsors_*.csv
+/ctis_trials_*.csv
