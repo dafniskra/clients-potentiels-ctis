@@ -70,6 +70,7 @@ for r in rows:
         1 if r['Trial results'] == 'Yes' else 0, int(n) if n.isdigit() else 0,
         1 if r['Trial region'].startswith('In both') else 0, u.strftime('%Y-%m-%d') if u else '',
         '' if r['Product'].strip() in ('', 'N/A') else re.sub(r'\s+', ' ', r['Product']).strip(),
+        d.strftime('%Y-%m-%d') if d else '',
     ])
     ns = [x.strip() for x in r['Sponsor/Co-Sponsors'].split(', ')]
     ts = [x.strip() for x in r['Sponsor type'].split(', ')]

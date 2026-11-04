@@ -1,6 +1,6 @@
 # CTIS Sponsor Prospects
 
-A prospecting dashboard that identifies the most active clinical trial sponsors in Europe, based on the public **CTIS** register (EU Clinical Trials Information System). It is used to prioritise potential clients for a clinical trial management platform.
+A prospecting dashboard built on the public **CTIS** register (EU Clinical Trials Information System). It finds **small trial sponsors** (biotechs, research centres, hospitals with 10 trials or fewer) that are likely to need an affordable clinical trial management tool, **France first**.
 
 The dashboard is a self-contained HTML page with all data embedded: open `docs/index.html` in a browser (an internet connection is needed for the fonts and the charting library).
 
@@ -18,15 +18,16 @@ src/template.html               Dashboard template (HTML, CSS, JavaScript)
 
 ## Features
 
-- **KPIs and charts** recomputed from the filters: sponsors, trials, recruiting trials, countries covered; top sponsors, top countries, therapeutic areas, phases.
+- **Default view**: small sponsors (10 trials or fewer in CTIS) with at least one trial in France, ranked by fit score.
+- **KPIs and charts** recomputed from the filters: sponsors, trials, recruiting trials, countries covered; top prospects, top countries, therapeutic areas, phases.
 - **Trial-level filters**: each sponsor is re-ranked on its matching trials only.
   - product or molecule (several terms separated by commas; brand names and molecules are linked);
   - country, therapeutic area, phase, status, sponsor type;
-  - year authorised, last update, population, trial size, geographic scope, number of countries, published results;
-  - minimum / maximum number of trials, first administration to humans, bioequivalence, and more.
-- **Shortcuts**: small active biotechs, oncology in France, anti-PD-1 / PD-L1 immunotherapies, early phases, recruiting academic sponsors.
-- **Sponsor detail**: merged entities, countries, areas, phases, products and latest trials.
-- **CSV export** of the filtered view (sponsors or trials), comma-separated, UTF-8.
+  - authorised in the last 6 / 12 / 24 months, year authorised, last update, population, trial size, geographic scope, number of countries, published results;
+  - small sponsors only, new sponsors, minimum / maximum number of trials, first administration to humans, bioequivalence, and more.
+- **Target segments (France)**: biotechs starting a trial, recruiting academic centres, new sponsors, multi-country small sponsors; plus small sponsors across Europe.
+- **Sponsor detail**: how the fit score is built, contact links (Google, LinkedIn company and people searches, CTIS trial pages with the sponsor's public contact), merged entities, countries, areas, phases, products and latest trials.
+- **CSV export** of the filtered view (sponsors or trials), comma-separated, UTF-8, with fit details and contact links.
 
 ## Rebuilding the dashboard
 
@@ -55,7 +56,19 @@ To change the interface, edit `src/template.html`, never `docs/index.html`, whic
 
 Result on the 4 November 2026 export: 2,264 sponsors, 89 of them merged groups.
 
-**Prospect score**: `(2 × trials + 4 × recruiting trials) × 1.3` for pharmaceutical companies and industry. It is a prioritisation heuristic, not an official ranking.
+**Fit score** (0-100), computed on the trials that match the filters:
+
+| Signal | Points |
+|---|---|
+| Size: 1 trial in CTIS / 2-3 / 4-6 / 7-10 / more than 10 | 25 / 22 / 16 / 10 / 0 |
+| Timing: a trial is authorised and starting recruitment / authorised in the last 12 months / recruiting | 20 / 15 / 10 |
+| New sponsor: first trial authorised in the last 18 months | 10 |
+| Runs a multi-country trial | 10 |
+| Early or mid phase (I, I/II or II) | 5 |
+| 100 participants or more in total | 5 |
+| Has a trial in France | 25 |
+
+It is a prioritisation heuristic, not an official ranking. The weights are in `fitScore()` in `src/template.html`.
 
 **Participants**: trials reporting more than 100,000 participants are left out of the totals as outliers.
 
