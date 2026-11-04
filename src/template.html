@@ -1,0 +1,597 @@
+<title>Clients Potentiels CTIS</title>
+<meta name="description" content="Identification des promoteurs d'études cliniques (clients potentiels) à partir du registre CTIS.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Layout : bandeau KPI, graphiques 2×2, panneau de filtres, tableau paginé */
+:root{
+  --primary:#0891B2; --primary-dark:#0E7490; --primary-glow:rgba(8,145,178,.14);
+  --ink:#0F172A; --ink-soft:#475569; --bg:#F6F8FA; --card:#FFFFFF; --border:#E2E8F0;
+  --good:#10B981; --warn:#F59E0B; --bad:#EF4444;
+  --pharma-bg:#DCFCE7; --pharma-fg:#15803D; --other-bg:#E2E8F0; --other-fg:#475569;
+  --chip-bg:#E0F2F7; --chip-fg:#0E7490; --grid:rgba(148,163,184,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#E6EDF3; --ink-soft:#94A3B8; --bg:#0B1220; --card:#121B2E; --border:#1F2B42;
+    --primary-glow:rgba(8,145,178,.22); --primary-dark:#22D3EE;
+    --pharma-bg:#0F3D2A; --pharma-fg:#4ADE80; --other-bg:#1F2B42; --other-fg:#94A3B8;
+    --chip-bg:#123447; --chip-fg:#67E8F9; --grid:rgba(148,163,184,.12);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#E6EDF3; --ink-soft:#94A3B8; --bg:#0B1220; --card:#121B2E; --border:#1F2B42;
+  --primary-glow:rgba(8,145,178,.22); --primary-dark:#22D3EE;
+  --pharma-bg:#0F3D2A; --pharma-fg:#4ADE80; --other-bg:#1F2B42; --other-fg:#94A3B8;
+  --chip-bg:#123447; --chip-fg:#67E8F9; --grid:rgba(148,163,184,.12);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+.hero{background:linear-gradient(135deg,#0891B2 0%,#0E7490 100%);color:#fff;padding:40px 20px 64px;position:relative;overflow:hidden;}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 0%,rgba(255,255,255,.18),transparent 60%);}
+.hero-inner{max-width:1180px;margin:0 auto;position:relative;z-index:1;}
+.hero-kicker{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85;}
+.hero h1{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(28px,4vw,42px);margin:8px 0 10px;font-weight:400;text-wrap:balance;}
+.hero p{max-width:640px;opacity:.92;line-height:1.55;font-size:15.5px;margin:0 0 28px;}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;max-width:960px;}
+.kpi{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:16px 18px;}
+.kpi .n{font-size:26px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;}
+.kpi .l{font-size:12.5px;opacity:.88;margin-top:3px;}
+.wrap{max-width:1180px;margin:-34px auto 60px;padding:0 20px;position:relative;z-index:2;}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:0 10px 30px -18px rgba(0,0,0,.25);}
+
+/* Filtres */
+.filters{padding:18px 20px 16px;margin-bottom:22px;}
+.filters-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+.filters-head h2{margin:0;font-size:15px;font-weight:800;}
+.filters-head .actions{display:flex;gap:8px;align-items:center;}
+.btn{border:1px solid var(--border);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:9px;cursor:pointer;font:600 12.5px 'Plus Jakarta Sans',system-ui,sans-serif;}
+.btn:hover{border-color:var(--primary);color:var(--primary);}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+.search-row{display:flex;gap:10px;margin-bottom:14px;}
+.search-row input{flex:1;min-width:0;padding:11px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink);font:14px 'Plus Jakarta Sans',system-ui,sans-serif;}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 14px;}
+.fgrid.more{margin-top:12px;}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.field-wide{grid-column:span 2;}
+@media (max-width:480px){.field-wide{grid-column:auto;}}
+.hint{font-size:11.5px;color:var(--ink-soft);line-height:1.4;}
+.hint b{color:var(--chip-fg);font-weight:700;}
+.field label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);}
+.field select,.field input{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--ink);font:13px 'Plus Jakarta Sans',system-ui,sans-serif;}
+.field select.on,.field input.on{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+.checks{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);}
+.checks label{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-soft);font-weight:600;cursor:pointer;}
+.checks input{accent-color:var(--primary);width:15px;height:15px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;}
+.chips:empty{display:none;}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);color:var(--chip-fg);border:0;border-radius:999px;padding:4px 6px 4px 11px;font:600 12px 'Plus Jakarta Sans',system-ui,sans-serif;cursor:pointer;}
+.chip b{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:rgba(127,127,127,.18);font-size:11px;}
+.preset-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;font-size:12px;color:var(--ink-soft);}
+.preset-row .btn{padding:5px 10px;font-size:12px;}
+button:focus-visible,input:focus-visible,select:focus-visible,tr:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+
+/* Graphiques */
+.charts-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:22px;}
+.chart-card{padding:18px 18px 10px;min-width:0;}
+.chart-card h3{margin:0 0 10px;font-size:13px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
+.chart-card .ch-box{height:220px;position:relative;}
+
+/* Tableau */
+.table-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 20px 8px;}
+.export{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.export-msg{font-size:12px;color:var(--ink-soft);}
+.export-msg.ok{color:var(--good);}
+.export-msg.err{color:var(--bad);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.result-count{font-size:13px;color:var(--ink-soft);font-weight:600;}
+.result-count strong{color:var(--ink);}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+thead th{position:sticky;top:0;background:var(--card);text-align:left;padding:10px 14px;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;}
+thead th:hover{color:var(--primary);}
+thead th.sorted::after{content:" ▾";}
+thead th.sorted.asc::after{content:" ▴";}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;}
+tbody tr:hover{background:var(--primary-glow);}
+td{padding:11px 14px;vertical-align:top;}
+td.num{font-variant-numeric:tabular-nums;}
+.sponsor-name{font-weight:700;}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+.badge.pharma{background:var(--pharma-bg);color:var(--pharma-fg);}
+.badge.other{background:var(--other-bg);color:var(--other-fg);}
+.score-pill{display:inline-flex;align-items:center;gap:6px;font-weight:800;color:var(--primary-dark);font-variant-numeric:tabular-nums;}
+.score-bar{width:52px;height:6px;border-radius:4px;background:var(--border);overflow:hidden;}
+.score-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--good));}
+.tags{display:flex;flex-wrap:wrap;gap:4px;max-width:260px;}
+.tag{font-size:10.5px;background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);padding:2px 7px;border-radius:999px;}
+.active-pill{font-weight:700;color:var(--good);}
+.active-pill.zero{color:var(--ink-soft);font-weight:500;}
+.empty{padding:40px 20px;text-align:center;color:var(--ink-soft);}
+.pager{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;font-size:13px;color:var(--ink-soft);flex-wrap:wrap;}
+.pager button{border:1px solid var(--border);background:var(--card);color:var(--ink);padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;font-family:inherit;}
+.pager button:disabled{opacity:.4;cursor:not-allowed;}
+.pager select{padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;}
+
+/* Fiche */
+.overlay{position:fixed;inset:0;background:rgba(5,10,20,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.overlay.open{display:flex;}
+.modal{position:relative;background:var(--card);border-radius:18px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;padding:28px 28px 24px;border:1px solid var(--border);}
+.modal h2{font-family:'DM Serif Display',Georgia,serif;font-size:24px;margin:0 32px 4px 0;font-weight:400;}
+.modal .sub{color:var(--ink-soft);font-size:13px;margin-bottom:18px;}
+.modal .note{font-size:12px;color:var(--chip-fg);background:var(--chip-bg);border-radius:8px;padding:7px 10px;margin-bottom:14px;}
+.modal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;}
+.modal-stat{background:var(--bg);border-radius:10px;padding:10px 12px;border:1px solid var(--border);}
+.modal-stat .n{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;}
+.modal-stat .l{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;}
+.msec{margin-bottom:16px;}
+.msec strong{font-size:13px;}
+.msec .tags{margin-top:6px;max-width:100%;}
+.trial-item{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px;}
+.trial-item .tt{font-weight:700;margin-bottom:4px;line-height:1.35;}
+.trial-item .meta{display:flex;gap:6px 10px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);}
+.close-btn{position:absolute;top:18px;right:18px;background:none;border:none;font-size:24px;color:var(--ink-soft);cursor:pointer;line-height:1;}
+footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);font-size:12px;text-align:center;line-height:1.6;}
+
+@media (max-width:860px){
+  .charts-row{grid-template-columns:1fr;}
+  table{font-size:12.5px;}
+  td,th{padding:8px 10px;}
+  .tags{max-width:160px;}
+  .modal{padding:22px 18px;}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-kicker">PMM-221 · Développement commercial</div>
+    <h1>Qui mène des essais cliniques en Europe ?</h1>
+    <p>Exploration du registre public CTIS pour identifier les promoteurs les plus actifs (laboratoires pharmaceutiques, CRO, institutions), donc les clients potentiels les plus pertinents pour une plateforme de gestion d'essais cliniques. Les chiffres ci-dessous suivent les filtres.</p>
+    <div class="kpis" id="kpis"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section class="panel filters" aria-label="Filtres">
+    <div class="filters-head">
+      <h2>Filtres <span id="activeCount" class="result-count"></span></h2>
+      <div class="actions">
+        <button class="btn" id="toggleMore" type="button" aria-expanded="true">Masquer les filtres avancés</button>
+        <button class="btn primary" id="resetAll" type="button">Réinitialiser</button>
+      </div>
+    </div>
+    <div class="search-row">
+      <input type="text" id="search" placeholder="Rechercher un promoteur ou une filiale (ex : Celgene, Sanofi Pasteur, AP-HP…)" aria-label="Rechercher un promoteur">
+    </div>
+    <div class="fgrid">
+      <div class="field field-wide"><label for="fProduct">Produit ou molécule</label><input type="text" id="fProduct" list="prodList" autocomplete="off" placeholder="ex : pembrolizumab, Keytruda, Opdivo…"><datalist id="prodList"></datalist><span class="hint" id="prodHint">Séparez plusieurs produits par des virgules. Les marques et les molécules sont reliées.</span></div>
+      <div class="field"><label for="fCountry">Pays de l'essai</label><select id="fCountry"><option value="">Tous les pays</option></select></div>
+      <div class="field"><label for="fArea">Aire thérapeutique</label><select id="fArea"><option value="">Toutes les aires</option></select></div>
+      <div class="field"><label for="fPhase">Phase</label><select id="fPhase"><option value="">Toutes les phases</option><option value="g:early">Précoces (I et I/II)</option><option value="g:mid">Intermédiaires (II et II/III)</option><option value="g:late">Tardives (III, III/IV et IV)</option></select></div>
+      <div class="field"><label for="fStatus">Statut de l'essai</label><select id="fStatus"><option value="">Tous les statuts</option><option value="rec">En recrutement (tous)</option><option value="run">En cours (tous)</option></select></div>
+      <div class="field"><label for="fType">Type de promoteur</label><select id="fType"><option value="">Tous les types</option></select></div>
+    </div>
+    <div class="fgrid more" id="moreFilters">
+      <div class="field"><label for="fYearFrom">Autorisé à partir de</label><select id="fYearFrom"><option value="">Toute année</option></select></div>
+      <div class="field"><label for="fYearTo">Autorisé jusqu'en</label><select id="fYearTo"><option value="">Toute année</option></select></div>
+      <div class="field"><label for="fUpdated">Mis à jour depuis</label><select id="fUpdated">
+        <option value="">Toute date</option><option value="30">30 jours</option><option value="90">3 mois</option><option value="180">6 mois</option><option value="365">1 an</option></select></div>
+      <div class="field"><label for="fPop">Population</label><select id="fPop">
+        <option value="">Toutes</option><option value="1">Pédiatrie (0-17 ans)</option><option value="2">Adultes (18-64 ans)</option><option value="4">Seniors (65 ans et +)</option></select></div>
+      <div class="field"><label for="fSize">Taille de l'essai</label><select id="fSize">
+        <option value="">Toutes</option><option value="0-49">Moins de 50 participants</option><option value="50-199">50 à 199</option><option value="200-999">200 à 999</option><option value="1000-">1 000 et plus</option></select></div>
+      <div class="field"><label for="fRegion">Portée géographique</label><select id="fRegion">
+        <option value="">Toutes</option><option value="0">EEE uniquement</option><option value="1">EEE et hors EEE</option></select></div>
+      <div class="field"><label for="fNCountries">Nb de pays par essai</label><select id="fNCountries">
+        <option value="">Peu importe</option><option value="1-1">1 pays</option><option value="2-4">2 à 4 pays</option><option value="5-">5 pays et +</option></select></div>
+      <div class="field"><label for="fResults">Résultats publiés</label><select id="fResults">
+        <option value="">Peu importe</option><option value="1">Avec résultats</option><option value="0">Sans résultats</option></select></div>
+      <div class="field"><label for="fMinTrials">Min. essais correspondants</label><input type="number" id="fMinTrials" min="1" step="1" placeholder="1" inputmode="numeric"></div>
+      <div class="field"><label for="fMinActive">Min. essais en recrutement</label><input type="number" id="fMinActive" min="0" step="1" placeholder="0" inputmode="numeric"></div>
+      <div class="field"><label for="fMaxTrials">Max. essais correspondants</label><input type="number" id="fMaxTrials" min="1" step="1" placeholder="Illimité" inputmode="numeric"></div>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" id="cPharma"> Labos / industrie uniquement</label>
+      <label><input type="checkbox" id="cAcademic"> Académiques / hôpitaux uniquement</label>
+      <label><input type="checkbox" id="cFih"> Première administration chez l'homme</label>
+      <label><input type="checkbox" id="cBe"> Études de bioéquivalence</label>
+      <label><input type="checkbox" id="cMerged"> Groupes fusionnés uniquement</label>
+    </div>
+    <div class="preset-row">Raccourcis :
+      <button class="btn" type="button" data-preset="biotech">Petites biotechs actives</button>
+      <button class="btn" type="button" data-preset="fr-onco">Oncologie en France</button>
+      <button class="btn" type="button" data-preset="io">Immunothérapies anti-PD-1 / PD-L1</button>
+      <button class="btn" type="button" data-preset="early">Phases précoces (I, I/II)</button>
+      <button class="btn" type="button" data-preset="academic">Promoteurs académiques en recrutement</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <div class="charts-row">
+    <div class="panel chart-card"><h3>Top 10 promoteurs (essais correspondants)</h3><div class="ch-box"><canvas id="chartTop"></canvas></div></div>
+    <div class="panel chart-card"><h3>Top 10 pays (essais correspondants)</h3><div class="ch-box"><canvas id="chartCountry"></canvas></div></div>
+    <div class="panel chart-card"><h3>Essais par aire thérapeutique</h3><div class="ch-box"><canvas id="chartArea"></canvas></div></div>
+    <div class="panel chart-card"><h3>Essais par phase</h3><div class="ch-box"><canvas id="chartPhase"></canvas></div></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="table-head">
+      <div class="result-count" id="resultCount"></div>
+      <div class="export">
+        <span id="exportMsg" class="export-msg" role="status"></span>
+        <button class="btn" type="button" id="exportSponsors">Exporter les promoteurs (CSV)</button>
+        <button class="btn" type="button" id="exportTrials">Exporter les essais (CSV)</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="score" class="sorted">Score</th>
+            <th data-key="name">Promoteur</th>
+            <th data-key="type">Type</th>
+            <th data-key="n">Essais</th>
+            <th data-key="active">En recrutement</th>
+            <th data-key="nc">Pays</th>
+            <th data-key="areas">Aires thérapeutiques</th>
+            <th data-key="last">Dernière MàJ</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <button id="prevPage" type="button">← Précédent</button>
+      <span id="pageInfo"></span>
+      <button id="nextPage" type="button">Suivant →</button>
+      <select id="pageSize" aria-label="Lignes par page"><option>25</option><option>50</option><option>100</option></select>
+    </div>
+  </div>
+
+  <footer>
+    Source : registre CTIS (EU Clinical Trials Information System), extraction du 4 novembre 2026 : 10 000 essais, <span id="footSponsors"></span> promoteurs après fusion des doublons (variantes d'écriture et filiales d'un même groupe pharma ; MSD et Merck KGaA restent distincts).<br>
+    Les filtres s'appliquent aux essais : chaque promoteur est classé sur ses seuls essais correspondants. Score = (2 × essais + 4 × essais en recrutement), × 1,3 pour les labos et l'industrie. C'est une heuristique de priorisation, pas un classement officiel.
+  </footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="close-btn" id="closeModal" type="button" aria-label="Fermer">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const DB = __DATA__;
+const T = DB.T, S = DB.S;
+// index des champs d'un essai
+const NUM=0, TITLE=1, ST=2, PH=3, SUB=4, AR=5, CO=6, YR=7, AG=8, RES=9, PART=10, REG=11, UPD=12, PROD=13;
+const norm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const PN = T.map(t=>norm(t[PROD]));
+const EXTRACT = new Date('2026-11-04');
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => n.toLocaleString('fr-FR');
+const frDate = iso => iso ? iso.split('-').reverse().join('/') : '—';
+
+const COUNTRY_FR = {Austria:'Autriche',Belgium:'Belgique',Bulgaria:'Bulgarie',Croatia:'Croatie',Cyprus:'Chypre',Czechia:'Tchéquie',Denmark:'Danemark',Estonia:'Estonie',Finland:'Finlande',France:'France',Germany:'Allemagne',Greece:'Grèce',Hungary:'Hongrie',Iceland:'Islande',Ireland:'Irlande',Italy:'Italie',Latvia:'Lettonie',Liechtenstein:'Liechtenstein',Lithuania:'Lituanie',Luxembourg:'Luxembourg',Malta:'Malte',Netherlands:'Pays-Bas',Norway:'Norvège',Poland:'Pologne',Portugal:'Portugal',Romania:'Roumanie',Slovakia:'Slovaquie',Slovenia:'Slovénie',Spain:'Espagne',Sweden:'Suède'};
+const STATUS_FR = {'Ongoing, recruiting':'En cours, en recrutement','Authorised, recruiting':'Autorisé, en recrutement','Ongoing, recruitment ended':'En cours, recrutement terminé','Ended':'Terminé','Temporarily halted':'Interrompu temporairement','Under evaluation':'En évaluation','Expired':'Expiré','Suspended':'Suspendu'};
+const TYPE_FR = {'Pharmaceutical company':'Laboratoire pharmaceutique','Hospital/Clinic/Other health care facility':'Hôpital / clinique','Educational Institution':'Université / école','Laboratory/Research/Testing facility':'Laboratoire de recherche','Patient organisation/association':'Association de patients','Industry':'Industrie','Health care':'Santé (autre)','Non-Pharmaceutical company':'Entreprise non pharmaceutique','Not Applicable':'Non applicable','SME':'PME'};
+const AREA_FR = {'Neoplasms':'Oncologie','Nervous System Diseases':'Système nerveux','Immune System Diseases':'Système immunitaire','Cardiovascular Diseases':'Cardiovasculaire','Digestive System Diseases':'Appareil digestif','Respiratory Tract Diseases':'Voies respiratoires','Hemic and Lymphatic Diseases':'Sang et lymphe','Nutritional and Metabolic Diseases':'Nutrition et métabolisme','Virus Diseases':'Maladies virales','Skin and Connective Tissue Diseases':'Peau et tissu conjonctif','Musculoskeletal Diseases':'Appareil locomoteur','Bacterial Infections and Mycoses':'Infections bactériennes et mycoses','Endocrine System Diseases':'Système endocrinien','Eye Diseases':'Ophtalmologie','Mental Disorders':'Troubles mentaux','Male Urogenital Diseases':'Urogénital masculin','Female Urogenital Diseases and Pregnancy Complications':'Urogénital féminin et grossesse','Congenital, Hereditary, and Neonatal Diseases and Abnormalities':'Maladies congénitales et néonatales','Pathological Conditions, Signs and Symptoms':'Signes et symptômes','Otorhinolaryngologic Diseases':'ORL','Stomatognathic Diseases':'Bouche et mâchoires','Wounds and Injuries':'Plaies et traumatismes','Parasitic Diseases':'Maladies parasitaires','Chemically-Induced Disorders':'Troubles d\'origine chimique','Occupational Diseases':'Maladies professionnelles','Disorders of Environmental Origin':'Troubles d\'origine environnementale','Animal Diseases':'Maladies animales','Not possible to specify':'Non précisé'};
+const cName = i => COUNTRY_FR[DB.country[i]] || DB.country[i];
+const aName = i => AREA_FR[DB.area[i]] || DB.area[i];
+const sName = i => STATUS_FR[DB.status[i]] || DB.status[i];
+const tName = t => TYPE_FR[t] || t;
+const REC = new Set(DB.status.map((s,i)=>s.includes('recruiting')?i:-1).filter(i=>i>=0));
+const RUN = new Set(DB.status.map((s,i)=>(s.startsWith('Ongoing')||s.startsWith('Authorised'))?i:-1).filter(i=>i>=0));
+const PHASE_ORDER = ['Phase I','Phase I/II','Phase II','Phase II/III','Phase III','Phase III/IV','Phase IV','Autre'];
+const PHASE_GROUPS = {early:['Phase I','Phase I/II'], mid:['Phase II','Phase II/III'], late:['Phase III','Phase III/IV','Phase IV']};
+const ACADEMIC = new Set(['Hospital/Clinic/Other health care facility','Educational Institution','Laboratory/Research/Testing facility','Patient organisation/association','Health care']);
+
+// précalculs par promoteur
+S.forEach(s=>{ s.search = (s.name+' '+(s.ent||[]).map(e=>e[0]).join(' ')).toLowerCase(); });
+
+// ---------- remplissage des listes ----------
+const $ = id => document.getElementById(id);
+function fill(sel, items){ items.forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; sel.appendChild(o); }); }
+const countTrials = (field) => { const c={}; T.forEach(t=>{ const v=t[field]; (Array.isArray(v)?v:[v]).forEach(x=>c[x]=(c[x]||0)+1); }); return c; };
+const cc = countTrials(CO), ac = countTrials(AR), pc = countTrials(PH), sc = countTrials(ST);
+fill($('fCountry'), DB.country.map((c,i)=>[i,cName(i)]).sort((a,b)=>a[1].localeCompare(b[1],'fr')).map(([i,l])=>[i,`${l} (${fmt(cc[i]||0)})`]));
+fill($('fArea'), DB.area.map((a,i)=>[i,aName(i)]).sort((a,b)=>(ac[b[0]]||0)-(ac[a[0]]||0)).map(([i,l])=>[i,`${l} (${fmt(ac[i]||0)})`]));
+fill($('fPhase'), DB.phase.map((p,i)=>[i,p]).sort((a,b)=>PHASE_ORDER.indexOf(a[1])-PHASE_ORDER.indexOf(b[1])).map(([i,l])=>[i,`${l} (${fmt(pc[i]||0)})`]));
+fill($('fStatus'), DB.status.map((s,i)=>[i,`${sName(i)} (${fmt(sc[i]||0)})`]).sort((a,b)=>(sc[b[0]]||0)-(sc[a[0]]||0)));
+const typeCount = {}; S.forEach(s=>typeCount[s.type]=(typeCount[s.type]||0)+1);
+fill($('fType'), Object.keys(typeCount).sort((a,b)=>typeCount[b]-typeCount[a]).map(t=>[t,`${tName(t)} (${fmt(typeCount[t])})`]));
+const years = [...new Set(T.map(t=>t[YR]).filter(Boolean))].sort();
+fill($('fYearFrom'), years.map(y=>[y,y])); fill($('fYearTo'), years.map(y=>[y,y]));
+
+// ---------- lecture des filtres ----------
+const SELECTS = ['fCountry','fArea','fPhase','fStatus','fType','fYearFrom','fYearTo','fUpdated','fPop','fSize','fRegion','fNCountries','fResults'];
+const NUMBERS = ['fProduct','fMinTrials','fMinActive','fMaxTrials'];
+const CHECKS = ['cPharma','cAcademic','cFih','cBe','cMerged'];
+const LABELS = {fProduct:'Produit',fCountry:'Pays',fArea:'Aire',fPhase:'Phase',fStatus:'Statut',fType:'Type',fYearFrom:'Autorisé dès',fYearTo:'Autorisé jusqu\'en',fUpdated:'MàJ depuis',fPop:'Population',fSize:'Taille',fRegion:'Portée',fNCountries:'Nb pays',fResults:'Résultats',fMinTrials:'Min. essais',fMinActive:'Min. en recrutement',fMaxTrials:'Max. essais',cPharma:'Labos / industrie',cAcademic:'Académiques / hôpitaux',cFih:'1re administration chez l\'homme',cBe:'Bioéquivalence',cMerged:'Groupes fusionnés'};
+const range = v => { const [a,b] = v.split('-'); return [a===''?-Infinity:+a, b===''||b===undefined?Infinity:+b]; };
+
+function readFilters(){
+  const f = {}; SELECTS.forEach(id=>f[id]=$(id).value); NUMBERS.forEach(id=>f[id]=$(id).value); CHECKS.forEach(id=>f[id]=$(id).checked);
+  f.q = $('search').value.trim().toLowerCase();
+  return f;
+}
+
+function trialMask(f){
+  const country = f.fCountry===''?null:+f.fCountry, area = f.fArea===''?null:+f.fArea;
+  const phase = f.fPhase==='' ? null : new Set(f.fPhase.startsWith('g:') ? PHASE_GROUPS[f.fPhase.slice(2)].map(p=>DB.phase.indexOf(p)) : [+f.fPhase]);
+  const status = f.fStatus, yFrom = f.fYearFrom?+f.fYearFrom:0, yTo = f.fYearTo?+f.fYearTo:9999;
+  const upd = f.fUpdated ? new Date(EXTRACT - (+f.fUpdated)*864e5).toISOString().slice(0,10) : '';
+  const pop = f.fPop?+f.fPop:0, size = f.fSize?range(f.fSize):null, region = f.fRegion===''?null:+f.fRegion;
+  const nc = f.fNCountries?range(f.fNCountries):null, res = f.fResults===''?null:+f.fResults;
+  const prod = productTerms(f.fProduct).flat();
+  const any = prod.length>0||country!==null||area!==null||phase!==null||status||f.fYearFrom||f.fYearTo||upd||pop||size||region!==null||nc||res!==null||f.cFih||f.cBe;
+  const m = new Uint8Array(T.length);
+  for(let i=0;i<T.length;i++){
+    const t = T[i];
+    if(country!==null && !t[CO].includes(country)) continue;
+    if(area!==null && !t[AR].includes(area)) continue;
+    if(phase!==null && !phase.has(t[PH])) continue;
+    if(status==='rec'){ if(!REC.has(t[ST])) continue; }
+    else if(status==='run'){ if(!RUN.has(t[ST])) continue; }
+    else if(status!=='' && t[ST]!==+status) continue;
+    if((f.fYearFrom||f.fYearTo) && (t[YR]<yFrom || t[YR]>yTo)) continue;
+    if(upd && t[UPD]<upd) continue;
+    if(pop && !(t[AG]&pop)) continue;
+    if(size && (t[PART]<size[0] || t[PART]>size[1])) continue;
+    if(region!==null && t[REG]!==region) continue;
+    if(nc && (t[CO].length<nc[0] || t[CO].length>nc[1])) continue;
+    if(res!==null && t[RES]!==res) continue;
+    if(f.cFih && t[SUB]!==1) continue;
+    if(f.cBe && t[SUB]!==2) continue;
+    if(prod.length && !prod.some(a=>PN[i].includes(a))) continue;
+    m[i]=1;
+  }
+  return {m, any};
+}
+
+// termes produit : virgule = OU ; chaque terme est étendu à ses équivalents marque / molécule
+function productTerms(raw){
+  return String(raw||'').split(',').map(x=>norm(x).trim()).filter(x=>x.length>=2).map(term=>{
+    const alt = new Set([term]);
+    DB.syn.forEach(g=>{ if(g.some(m=>m===term || (term.length>=4 && m.startsWith(term)))) g.forEach(m=>alt.add(m)); });
+    return [...alt];
+  });
+}
+function productHint(raw){
+  const extra = productTerms(raw).map(a=>a.slice(1)).flat();
+  $('prodHint').innerHTML = extra.length ? 'Inclut aussi : <b>' + esc(extra.join(', ')) + '</b>' : 'Séparez plusieurs produits par des virgules. Les marques et les molécules sont reliées.';
+}
+$('prodList').innerHTML = DB.sugg.map(([n,c])=>`<option value="${esc(n)}" label="${c} essai${c>1?'s':''}"></option>`).join('');
+
+let VIEW = [], MASK = null;
+function compute(){
+  const f = readFilters();
+  const {m, any} = trialMask(f); MASK = m;
+  productHint(f.fProduct);
+  const minT = f.fMinTrials?+f.fMinTrials:1, minA = f.fMinActive?+f.fMinActive:0, maxT = f.fMaxTrials?+f.fMaxTrials:Infinity;
+  VIEW = [];
+  for(const s of S){
+    if(f.q && !s.search.includes(f.q)) continue;
+    if(f.fType && s.type!==f.fType) continue;
+    if(f.cPharma && !s.ph) continue;
+    if(f.cAcademic && !ACADEMIC.has(s.type)) continue;
+    if(f.cMerged && !s.ent) continue;
+    const tr = any ? s.t.filter(i=>m[i]) : s.t;
+    if(tr.length<minT || tr.length>maxT) continue;
+    let active=0, last='', areas={}, cs=new Set();
+    for(const i of tr){ const t=T[i]; if(REC.has(t[ST])) active++; if(t[UPD]>last) last=t[UPD]; t[AR].forEach(a=>areas[a]=(areas[a]||0)+1); t[CO].forEach(c=>cs.add(c)); }
+    if(active<minA) continue;
+    const score = Math.round((2*tr.length + 4*active)*(s.ph?1.3:1)*10)/10;
+    const topAreas = Object.entries(areas).sort((a,b)=>b[1]-a[1]).map(e=>+e[0]);
+    VIEW.push({s, tr, n:tr.length, active, last, score, nc:cs.size, areas:topAreas, name:s.name, type:s.type});
+  }
+  return f;
+}
+
+// ---------- graphiques ----------
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const charts = {};
+function barChart(id, horizontal, color){
+  if(typeof Chart==='undefined') return null;
+  return new Chart($(id), {type:'bar', data:{labels:[], datasets:[{data:[], backgroundColor:color, borderRadius:5}]},
+    options:{indexAxis:horizontal?'y':'x', animation:{duration:250}, plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true, grid:{color:css('--grid'), display:horizontal}, ticks:{color:css('--ink-soft'), font:{size:10}, autoSkip:false, maxRotation:horizontal?0:40}},
+              y:{beginAtZero:true, grid:{color:css('--grid'), display:!horizontal}, ticks:{color:css('--ink-soft'), font:{size:10}, autoSkip:false}}},
+      responsive:true, maintainAspectRatio:false}});
+}
+function setChart(c, labels, data){ if(!c) return; c.data.labels=labels; c.data.datasets[0].data=data; c.update(); }
+const short = (s,n) => s.length>n ? s.slice(0,n-1)+'…' : s;
+
+// ---------- rendu ----------
+let sortKey='score', sortDir=-1, page=1;
+function render(){
+  const f = compute();
+  // trials couverts (sans double compte) par la vue
+  const seen = new Uint8Array(T.length); let nTrials=0, nRec=0; const countries={}, areas={}, phases={};
+  VIEW.forEach(v=>v.tr.forEach(i=>{ if(seen[i]) return; seen[i]=1; nTrials++; const t=T[i]; if(REC.has(t[ST])) nRec++;
+    t[CO].forEach(c=>countries[c]=(countries[c]||0)+1); t[AR].forEach(a=>areas[a]=(areas[a]||0)+1); phases[t[PH]]=(phases[t[PH]]||0)+1; }));
+  $('kpis').innerHTML = [
+    [VIEW.length,'Promoteurs'],[nTrials,'Essais distincts'],[VIEW.filter(v=>v.s.ph).length,'Labos / industrie'],
+    [nRec,'Essais en recrutement'],[Object.keys(countries).length,'Pays couverts']
+  ].map(([n,l])=>`<div class="kpi"><div class="n">${fmt(n)}</div><div class="l">${l}</div></div>`).join('');
+
+  const top = [...VIEW].sort((a,b)=>b.n-a.n).slice(0,10);
+  setChart(charts.top, top.map(v=>short(v.name,22)), top.map(v=>v.n));
+  const tc = Object.entries(countries).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  setChart(charts.country, tc.map(e=>cName(+e[0])), tc.map(e=>e[1]));
+  const ta = Object.entries(areas).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  setChart(charts.area, ta.map(e=>short(aName(+e[0]),20)), ta.map(e=>e[1]));
+  const tp = Object.entries(phases).sort((a,b)=>PHASE_ORDER.indexOf(DB.phase[a[0]])-PHASE_ORDER.indexOf(DB.phase[b[0]]));
+  setChart(charts.phase, tp.map(e=>DB.phase[+e[0]]), tp.map(e=>e[1]));
+
+  // chips
+  const chips = [];
+  if(f.q) chips.push(['search',`Recherche : « ${f.q} »`]);
+  SELECTS.concat(NUMBERS).forEach(id=>{ if(f[id]!==''){ const el=$(id); const txt = el.tagName==='SELECT' ? el.options[el.selectedIndex].text.replace(/ \([\d\s  ]+\)$/,'') : f[id]; chips.push([id,`${LABELS[id]} : ${txt}`]); } });
+  CHECKS.forEach(id=>{ if(f[id]) chips.push([id,LABELS[id]]); });
+  $('chips').innerHTML = chips.map(([id,l])=>`<button class="chip" type="button" data-clear="${id}">${esc(l)} <b aria-hidden="true">×</b><span class="sr" hidden>Retirer</span></button>`).join('');
+  $('activeCount').textContent = chips.length ? `· ${chips.length} actif${chips.length>1?'s':''}` : '';
+  [...SELECTS,...NUMBERS].forEach(id=>$(id).classList.toggle('on', f[id]!==''));
+
+  // tri
+  VIEW.sort((a,b)=>{
+    let av=a[sortKey], bv=b[sortKey];
+    if(sortKey==='areas'){ av=aName(a.areas[0]??-1)||''; bv=aName(b.areas[0]??-1)||''; }
+    if(typeof av==='string') return sortDir*av.localeCompare(bv,'fr');
+    return sortDir*((av||0)-(bv||0)) || (b.score-a.score);
+  });
+  const size = +$('pageSize').value, pages = Math.max(1, Math.ceil(VIEW.length/size));
+  if(page>pages) page=pages;
+  const rows = VIEW.slice((page-1)*size, page*size);
+  const maxScore = Math.max(1, ...VIEW.map(v=>v.score));
+  $('resultCount').innerHTML = `<strong>${fmt(VIEW.length)}</strong> promoteur${VIEW.length>1?'s':''} · <strong>${fmt(nTrials)}</strong> essais correspondants`;
+  $('tbody').innerHTML = rows.length ? rows.map((v,k)=>{
+    const pct = Math.round(v.score/maxScore*100);
+    return `<tr tabindex="0" data-i="${(page-1)*size+k}">
+      <td><div class="score-pill">${v.score} <span class="score-bar"><i style="width:${pct}%"></i></span></div></td>
+      <td><div class="sponsor-name">${esc(v.name)}${v.s.ent?` <span class="tag" title="${esc(v.s.ent.map(e=>e[0]).join(' · '))}">${v.s.ent.length} entités</span>`:''}</div></td>
+      <td><span class="badge ${v.s.ph?'pharma':'other'}">${esc(short(tName(v.type),26))}</span></td>
+      <td class="num">${v.n}</td>
+      <td class="num"><span class="active-pill ${v.active===0?'zero':''}">${v.active}</span></td>
+      <td class="num">${v.nc}</td>
+      <td><div class="tags">${v.areas.slice(0,3).map(a=>`<span class="tag">${esc(aName(a))}</span>`).join('')}</div></td>
+      <td class="num">${frDate(v.last)}</td>
+    </tr>`;}).join('') : `<tr><td colspan="8" class="empty">Aucun promoteur ne correspond à ces filtres. Retirez un filtre ou cliquez sur Réinitialiser.</td></tr>`;
+  $('pageInfo').textContent = `Page ${page} / ${pages}`;
+  $('prevPage').disabled = page<=1; $('nextPage').disabled = page>=pages;
+}
+
+// ---------- fiche promoteur ----------
+function openModal(v){
+  const s = v.s, filtered = v.n !== s.t.length;
+  const cnt = (field) => { const c={}; v.tr.forEach(i=>{ const x=T[i][field]; (Array.isArray(x)?x:[x]).forEach(y=>c[y]=(c[y]||0)+1); }); return Object.entries(c).sort((a,b)=>b[1]-a[1]); };
+  const part = v.tr.reduce((a,i)=>a+(T[i][PART]<=100000?T[i][PART]:0),0);
+  const trials = [...v.tr].sort((a,b)=>T[b][UPD].localeCompare(T[a][UPD]));
+  const statusColor = st => st.includes('recruiting') ? 'var(--good)' : (/halted|Suspended/.test(st) ? 'var(--bad)' : 'var(--ink-soft)');
+  $('modalBody').innerHTML = `
+    <h2>${esc(s.name)}</h2>
+    <div class="sub">${esc(tName(s.type))} · ${fmt(s.t.length)} essais au total dans CTIS</div>
+    ${filtered?`<div class="note">Chiffres calculés sur les ${v.n} essais qui correspondent aux filtres actifs.</div>`:''}
+    <div class="modal-grid">
+      <div class="modal-stat"><div class="n">${v.n}</div><div class="l">Essais</div></div>
+      <div class="modal-stat"><div class="n">${v.active}</div><div class="l">En recrutement</div></div>
+      <div class="modal-stat"><div class="n">${v.score}</div><div class="l">Score</div></div>
+      <div class="modal-stat"><div class="n">${v.nc}</div><div class="l">Pays</div></div>
+      <div class="modal-stat"><div class="n">${part?fmt(part):'—'}</div><div class="l">Participants (est.)</div></div>
+    </div>
+    ${s.ent?`<div class="msec"><strong>Entités regroupées (${s.ent.length}) :</strong><div class="tags">${s.ent.map(e=>`<span class="tag">${esc(e[0])} · ${e[1]}</span>`).join('')}</div></div>`:''}
+    <div class="msec"><strong>Pays :</strong><div class="tags">${cnt(CO).slice(0,15).map(([c,n])=>`<span class="tag">${esc(cName(+c))} · ${n}</span>`).join('')||'—'}</div></div>
+    <div class="msec"><strong>Aires thérapeutiques :</strong><div class="tags">${cnt(AR).slice(0,8).map(([a,n])=>`<span class="tag">${esc(aName(+a))} · ${n}</span>`).join('')||'—'}</div></div>
+    <div class="msec"><strong>Phases :</strong><div class="tags">${cnt(PH).map(([p,n])=>`<span class="tag">${esc(DB.phase[+p])} · ${n}</span>`).join('')}</div></div>
+    ${s.pr.length?`<div class="msec"><strong>Produits (exemples) :</strong><div class="tags">${s.pr.map(p=>`<span class="tag">${esc(p)}</span>`).join('')}</div></div>`:''}
+    <strong style="font-size:13px;">Essais, du plus récemment mis à jour au plus ancien${trials.length>15?` (15 sur ${trials.length})`:''} :</strong>
+    <div style="margin-top:8px;">${trials.slice(0,15).map(i=>{ const t=T[i]; const st=DB.status[t[ST]]; return `
+      <div class="trial-item"><div class="tt">${esc(short(t[TITLE],160))}</div>
+        <div class="meta"><span>${t[NUM]}</span><span style="color:${statusColor(st)};font-weight:700;">${esc(sName(t[ST]))}</span><span>${DB.phase[t[PH]]}</span><span>${t[CO].length} pays</span><span>MàJ ${frDate(t[UPD])}</span></div>${t[PROD]?`<div class="meta" style="margin-top:4px;">Produits : ${esc(short(t[PROD],140))}</div>`:''}</div>`; }).join('')}</div>`;
+  $('overlay').classList.add('open');
+  $('closeModal').focus();
+}
+const closeModal = () => $('overlay').classList.remove('open');
+
+// ---------- événements ----------
+function reset(){ $('search').value=''; [...SELECTS,...NUMBERS].forEach(id=>$(id).value=''); CHECKS.forEach(id=>$(id).checked=false); }
+const rerender = () => { page=1; render(); };
+let timer; $('search').addEventListener('input', ()=>{ clearTimeout(timer); timer=setTimeout(rerender,150); });
+[...SELECTS,...NUMBERS,...CHECKS].forEach(id=>$(id).addEventListener(NUMBERS.includes(id)?'input':'change', rerender));
+$('cPharma').addEventListener('change', ()=>{ if($('cPharma').checked){ $('cAcademic').checked=false; rerender(); } });
+$('cAcademic').addEventListener('change', ()=>{ if($('cAcademic').checked){ $('cPharma').checked=false; rerender(); } });
+$('cFih').addEventListener('change', ()=>{ if($('cFih').checked){ $('cBe').checked=false; rerender(); } });
+$('cBe').addEventListener('change', ()=>{ if($('cBe').checked){ $('cFih').checked=false; rerender(); } });
+$('resetAll').addEventListener('click', ()=>{ reset(); rerender(); });
+$('chips').addEventListener('click', e=>{ const b=e.target.closest('[data-clear]'); if(!b) return; const id=b.dataset.clear;
+  if(id==='search') $('search').value=''; else if(CHECKS.includes(id)) $(id).checked=false; else $(id).value=''; rerender(); });
+$('toggleMore').addEventListener('click', ()=>{ const m=$('moreFilters'); m.hidden=!m.hidden;
+  $('toggleMore').textContent = m.hidden ? 'Afficher les filtres avancés' : 'Masquer les filtres avancés'; $('toggleMore').setAttribute('aria-expanded', String(!m.hidden)); });
+const idxOf = (list, v) => String(list.indexOf(v));
+const PRESETS = {
+  'biotech': ()=>{ $('cPharma').checked=true; $('fMaxTrials').value='5'; $('fStatus').value='rec'; },
+  'fr-onco': ()=>{ $('fCountry').value=idxOf(DB.country,'France'); $('fArea').value=idxOf(DB.area,'Neoplasms'); },
+  'io': ()=>{ $('fProduct').value='pembrolizumab, nivolumab, atezolizumab, durvalumab, cemiplimab, avelumab, dostarlimab, tislelizumab'; },
+  'early': ()=>{ $('fPhase').value='g:early'; },
+  'academic': ()=>{ $('cAcademic').checked=true; $('fStatus').value='rec'; },
+};
+document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click', ()=>{ reset(); PRESETS[b.dataset.preset](); rerender(); }));
+document.querySelectorAll('thead th').forEach(th=>th.addEventListener('click', ()=>{
+  const k=th.dataset.key; if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir = k==='name'||k==='type'||k==='areas' ? 1 : -1; }
+  document.querySelectorAll('thead th').forEach(x=>x.classList.remove('sorted','asc')); th.classList.add('sorted'); if(sortDir===1) th.classList.add('asc');
+  page=1; render(); }));
+$('prevPage').addEventListener('click', ()=>{ if(page>1){ page--; render(); } });
+$('nextPage').addEventListener('click', ()=>{ page++; render(); });
+$('pageSize').addEventListener('change', rerender);
+const openRow = e => { const tr=e.target.closest('tr[data-i]'); if(tr) openModal(VIEW[+tr.dataset.i]); };
+$('tbody').addEventListener('click', openRow);
+$('tbody').addEventListener('keydown', e=>{ if(e.key==='Enter') openRow(e); });
+$('closeModal').addEventListener('click', closeModal);
+$('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+// ---------- export CSV ----------
+const csvCell = v => { const s = String(v ?? ''); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+const toCsv = (head, rows) => '﻿' + [head, ...rows].map(r=>r.map(csvCell).join(';')).join('\r\n');
+const topList = (ids, field, name, n) => { const c={}; ids.forEach(i=>{ const x=T[i][field]; (Array.isArray(x)?x:[x]).forEach(y=>c[y]=(c[y]||0)+1); });
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k,v])=>`${name(+k)} (${v})`).join(', '); };
+const POP = t => [t[AG]&1?'Pédiatrie':'', t[AG]&2?'Adultes':'', t[AG]&4?'Seniors':''].filter(Boolean).join(', ');
+const SUBL = ['', 'Première administration chez l\'homme', 'Bioéquivalence'];
+
+function sponsorsCsv(){
+  return toCsv(['Rang','Promoteur','Type','Labo / industrie','Score','Essais correspondants','Essais en recrutement','Nb pays','Pays principaux','Aires thérapeutiques','Phases','Dernière mise à jour','Essais au total dans CTIS','Entités regroupées'],
+    VIEW.map((v,k)=>[k+1, v.name, tName(v.type), v.s.ph?'Oui':'Non', String(v.score).replace('.',','), v.n, v.active, v.nc,
+      topList(v.tr, CO, cName, 10), topList(v.tr, AR, aName, 5), topList(v.tr, PH, i=>DB.phase[i], 7), frDate(v.last), v.s.t.length,
+      (v.s.ent||[]).map(e=>`${e[0]} (${e[1]})`).join(' | ')]));
+}
+function trialsCsv(){
+  const by = new Map();
+  VIEW.forEach(v=>v.tr.forEach(i=>{ if(!by.has(i)) by.set(i, []); by.get(i).push(v.name); }));
+  const ids = [...by.keys()].sort((a,b)=>T[b][UPD].localeCompare(T[a][UPD]));
+  return {n: ids.length, text: toCsv(['Numéro CTIS','Titre','Produits','Promoteur(s)','Statut','Phase','Type particulier','Aires thérapeutiques','Pays','Nb pays','Année d\'autorisation','Participants','Population','Portée','Résultats publiés','Dernière mise à jour'],
+    ids.map(i=>{ const t=T[i]; return [t[NUM], t[TITLE], t[PROD], by.get(i).join(' | '), sName(t[ST]), DB.phase[t[PH]], SUBL[t[SUB]], t[AR].map(aName).join(', '),
+      t[CO].map(cName).join(', '), t[CO].length, t[YR]||'', t[PART], POP(t), t[REG]?'EEE et hors EEE':'EEE uniquement', t[RES]?'Oui':'Non', frDate(t[UPD])]; }))};
+}
+function exportMsg(text, cls){ const m=$('exportMsg'); m.textContent=text; m.className='export-msg'+(cls?' '+cls:''); }
+let downloadsApi; // undefined = pas encore résolu
+async function saveFile(filename, text){
+  if(window.claude && typeof window.claude.use === 'function'){
+    if(downloadsApi === undefined) downloadsApi = await window.claude.use('downloads');
+    if(!downloadsApi){ exportMsg('L\'export n\'est pas disponible dans cette vue.', 'err'); return; }
+    try { await downloadsApi.save({filename, data: text}); exportMsg('Fichier enregistré : ' + filename, 'ok'); }
+    catch(e){
+      const c = e && e.code;
+      if(c==='declined') exportMsg('Export annulé.');
+      else if(c==='rate_limited') exportMsg('Une demande d\'enregistrement est déjà ouverte. Réessayez dans un instant.', 'err');
+      else exportMsg('L\'export n\'est pas disponible dans cette vue.', 'err');
+    }
+    return;
+  }
+  // fichier ouvert en local : téléchargement classique
+  const url = URL.createObjectURL(new Blob([text], {type:'text/csv;charset=utf-8'}));
+  const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  exportMsg('Fichier téléchargé : ' + filename, 'ok');
+}
+const stamp = () => new Date().toISOString().slice(0,10);
+async function runExport(btn, fn){
+  if(!VIEW.length){ exportMsg('Aucun résultat à exporter avec ces filtres.', 'err'); return; }
+  btn.disabled = true; exportMsg('Préparation du fichier…');
+  try { await fn(); } finally { btn.disabled = false; }
+}
+$('exportSponsors').addEventListener('click', e=>runExport(e.currentTarget, ()=>saveFile(`promoteurs_ctis_${VIEW.length}_${stamp()}.csv`, sponsorsCsv())));
+$('exportTrials').addEventListener('click', e=>runExport(e.currentTarget, ()=>{ const r=trialsCsv(); return saveFile(`essais_ctis_${r.n}_${stamp()}.csv`, r.text); }));
+
+$('footSponsors').textContent = fmt(S.length);
+charts.top = barChart('chartTop', true, '#0891B2');
+charts.country = barChart('chartCountry', true, '#10B981');
+charts.area = barChart('chartArea', false, '#F59E0B');
+charts.phase = barChart('chartPhase', false, '#8B5CF6');
+render();
+</script>

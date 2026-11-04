@@ -1,0 +1,3 @@
+# Fichiers générés ou volumineux : pas de diff texte ligne à ligne, exclus des stats de langage
+docs/index.html linguist-generated=true -diff
+data/*.csv -diff
