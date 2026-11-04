@@ -14,3 +14,7 @@ venv/
 # CSV exports downloaded from the dashboard
 /ctis_sponsors_*.csv
 /ctis_trials_*.csv
+
+# Personal data (CTIS contact points): never commit or publish
+data/private/
+private/

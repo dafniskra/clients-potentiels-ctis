@@ -11,6 +11,7 @@ data/CTIS_trials_20261104.csv   Raw CTIS register export (10,000 trials, 4 Novem
 docs/index.html                 Generated dashboard (open in a browser)
 docs/fusions_promoteurs.csv     Merged sponsor names, for review
 scripts/build_dashboard.py      Builds docs/ from the CSV export
+scripts/fetch_contacts.py       Fetches sponsor details from the public CTIS API (local, git-ignored)
 scripts/sponsor_groups.py       Sponsor merging rules
 scripts/synonyms.py             Brand name ↔ molecule (INN) mappings
 src/template.html               Dashboard template (HTML, CSS, JavaScript)
@@ -47,6 +48,22 @@ To update the data: export the trials from [euclinicaltrials.eu](https://euclini
 
 To change the interface, edit `src/template.html`, never `docs/index.html`, which is overwritten on every build.
 
+## Sponsor details and contacts (CTIS API)
+
+```bash
+python3 scripts/fetch_contacts.py               # small sponsors with a trial in France
+python3 scripts/fetch_contacts.py --all-small   # every sponsor with 10 trials or fewer
+python3 scripts/build_dashboard.py
+```
+
+`fetch_contacts.py` reads the sponsor list from `docs/index.html` and, for each target sponsor, fetches its latest trial from the public CTIS API (one request per second; re-running resumes where it stopped). Results go to `data/private/contacts.json`.
+
+The next build then adds:
+- to the public dashboard (`docs/index.html`): headquarters city and country, third parties named on the latest trial (often CROs), a "Sponsor based in" filter, a "No CRO listed" filter and a "Based in France" segment;
+- to a **private** dashboard (`private/prospects_with_contacts.html`): the same, plus the public and scientific contact points listed in CTIS (name, e-mail, phone).
+
+**Personal data.** Contact points can name real people, so they are personal data under the GDPR. `data/private/` and `private/` are git-ignored: never commit, publish or share them. B2B e-mail prospecting in France is allowed when the message relates to the person's job and offers an easy opt-out; keep a record of where each contact came from (CTIS) and honour removal requests.
+
 ## Method
 
 **Sponsor merging** (`scripts/sponsor_groups.py`)
@@ -65,8 +82,8 @@ Result on the 4 November 2026 export: 2,264 sponsors, 89 of them merged groups.
 | New sponsor: first trial authorised in the last 18 months | 10 |
 | Runs a multi-country trial | 10 |
 | Early or mid phase (I, I/II or II) | 5 |
-| 100 participants or more in total | 5 |
-| Has a trial in France | 25 |
+| No CRO or third party listed on its latest trial (if CTIS details were fetched; otherwise 100 participants or more) | 5 |
+| Based in France / based abroad with a trial in France / trial in France, headquarters unknown | 25 / 10 / 15 |
 
 It is a prioritisation heuristic, not an official ranking. The weights are in `fitScore()` in `src/template.html`.
 

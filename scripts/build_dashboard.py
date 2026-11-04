@@ -128,19 +128,49 @@ for group in SYN:
         n = sum(1 for p in PN if any(norm(g) in p for g in group))
         if n: sugg[k] = [m.title(), n]
 SUGG = sorted(sugg.values(), key=lambda x: (-x[1], x[0]))[:900]
-DATA = dict(T=T, S=S, syn=[[norm(m) for m in g] for g in SYN], sugg=SUGG, status=STATUS.items, phase=PHASE.items, area=AREA.items, country=COUNTRY.items)
-js = json.dumps(DATA, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+# ---- sponsor details from the CTIS API (scripts/fetch_contacts.py), when available
+# Public build: organisation data only (HQ city/country, third parties).
+# Private build: also the contact points, which can name people (GDPR) -> private/ (git-ignored).
+CONTACTS = REPO / 'data' / 'private' / 'contacts.json'
+details = json.loads(CONTACTS.read_text(encoding='utf-8')) if CONTACTS.exists() else {}
+PRIVATE_CT = {}
+for s_ in S:
+    d = details.get(s_['name'])
+    if not d or d.get('not_found'):
+        continue
+    if d.get('country'): s_['hq'] = d['country']
+    if d.get('city'): s_['city'] = d['city']
+    s_['tp'] = d.get('third_parties', [])[:12]
+    s_['tpn'] = len(d.get('third_parties', []))
+    ct = list(d.get('contacts', []))
+    if d.get('org_email') or d.get('org_phone'):
+        org = {'type': 'Organisation', 'email': d.get('org_email'), 'phone': d.get('org_phone')}
+        ct.append({k: v for k, v in org.items() if v})
+    if ct: PRIVATE_CT[s_['name']] = ct
+
 tpl = (REPO / 'src' / 'template.html').read_text(encoding='utf-8')
 assert tpl.count('__DATA__') == 1
-body = tpl.replace('__DATA__', js)
-# document HTML complet : <title>/<style> dans le head, le reste dans le body
-cut = body.index('</style>') + len('</style>')
-html = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
-        + body[:cut] + '\n</head>\n<body>\n' + body[cut:] + '\n</body>\n</html>\n')
+
+def render_page(data):
+    js = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    body = tpl.replace('__DATA__', js)
+    # full HTML document: <title>/<style> go in the head, the rest in the body
+    cut = body.index('</style>') + len('</style>')
+    return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+            + body[:cut] + '\n</head>\n<body>\n' + body[cut:] + '\n</body>\n</html>\n')
+
+DATA = dict(T=T, S=S, syn=[[norm(m) for m in g] for g in SYN], sugg=SUGG, status=STATUS.items, phase=PHASE.items, area=AREA.items, country=COUNTRY.items)
+html = render_page(DATA)
 out = REPO / 'docs'
 out.mkdir(exist_ok=True)
 (out / 'index.html').write_text(html, encoding='utf-8')
+
+if PRIVATE_CT:
+    priv_dir = REPO / 'private'
+    priv_dir.mkdir(exist_ok=True)
+    S_priv = [dict(s_, ct=PRIVATE_CT[s_['name']]) if s_['name'] in PRIVATE_CT else s_ for s_ in S]
+    (priv_dir / 'prospects_with_contacts.html').write_text(render_page(dict(DATA, S=S_priv, private=True)), encoding='utf-8')
 
 # table de correspondance des fusions, pour relecture
 with open(out / 'fusions_promoteurs.csv', 'w', encoding='utf-8-sig', newline='') as f:
@@ -154,3 +184,6 @@ print(f"Source : {SRC.name}")
 print(f"{len(T)} essais, {len(S)} promoteurs ({sum('ent' in s_ for s_ in S)} groupes fusionnés)")
 print(f"-> {out / 'index.html'} ({len(html) / 1e6:.1f} MB)")
 print(f"-> {out / 'fusions_promoteurs.csv'}")
+print(f"Sponsor details (CTIS API): {sum('hq' in s_ for s_ in S)} sponsors, contacts for {len(PRIVATE_CT)}")
+if PRIVATE_CT:
+    print(f"-> {REPO / 'private' / 'prospects_with_contacts.html'} (private: never commit or publish)")

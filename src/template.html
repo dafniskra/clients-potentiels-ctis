@@ -139,6 +139,12 @@ td.num{font-variant-numeric:tabular-nums;}
 .links a{font-size:12px;font-weight:700;color:var(--chip-fg);background:var(--chip-bg);padding:5px 10px;border-radius:8px;text-decoration:none;}
 .links a:hover{text-decoration:underline;}
 .trial-item a{color:inherit;}
+.loc{font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:2px;}
+.contacts{display:grid;gap:6px;margin-top:6px;}
+.contact{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:12.5px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;}
+.contact .ctype{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-weight:700;}
+.contact a{color:var(--primary-dark);word-break:break-all;}
+.private-note{background:var(--chip-bg);color:var(--chip-fg);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:16px;}
 .close-btn{position:absolute;top:18px;right:18px;background:none;border:none;font-size:24px;color:var(--ink-soft);cursor:pointer;line-height:1;}
 footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);font-size:12px;text-align:center;line-height:1.6;}
 
@@ -163,6 +169,7 @@ footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);
 
 <div class="wrap">
 
+  <div class="private-note" id="privateNote" hidden>Private file: it contains contact details published in CTIS, which can name people. Do not share, publish or commit it.</div>
   <section class="panel filters" aria-label="Filters">
     <div class="filters-head">
       <h2>Filters <span id="activeCount" class="result-count"></span></h2>
@@ -177,6 +184,7 @@ footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);
     <div class="fgrid">
       <div class="field field-wide"><label for="fProduct">Product or molecule</label><input type="text" id="fProduct" list="prodList" autocomplete="off" placeholder="e.g. pembrolizumab, Keytruda, Opdivo…"><datalist id="prodList"></datalist><span class="hint" id="prodHint">Separate several products with commas. Brand names and molecules are linked.</span></div>
       <div class="field"><label for="fCountry">Trial country</label><select id="fCountry"><option value="">All countries</option></select></div>
+      <div class="field"><label for="fHQ">Sponsor based in</label><select id="fHQ"><option value="">Anywhere</option></select></div>
       <div class="field"><label for="fArea">Therapeutic area</label><select id="fArea"><option value="">All areas</option></select></div>
       <div class="field"><label for="fPhase">Phase</label><select id="fPhase"><option value="">All phases</option><option value="g:early">Early (I and I/II)</option><option value="g:mid">Mid (II and II/III)</option><option value="g:late">Late (III, III/IV and IV)</option></select></div>
       <div class="field"><label for="fStatus">Trial status</label><select id="fStatus"><option value="">All statuses</option><option value="rec">Recruiting (all)</option><option value="run">Ongoing (all)</option></select></div>
@@ -205,6 +213,7 @@ footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);
     </div>
     <div class="checks">
       <label><input type="checkbox" id="cSmall" checked> Small sponsors only (10 trials or fewer in CTIS)</label>
+      <label id="inhouseLabel"><input type="checkbox" id="cInhouse"> No CRO listed (runs its trial in-house)</label>
       <label><input type="checkbox" id="cNew"> New sponsors (first trial authorised in the last 2 years)</label>
       <label><input type="checkbox" id="cPharma"> Pharma / industry only</label>
       <label><input type="checkbox" id="cAcademic"> Academic / hospitals only</label>
@@ -213,6 +222,7 @@ footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);
       <label><input type="checkbox" id="cMerged"> Merged groups only</label>
     </div>
     <div class="preset-row">Target segments (France):
+      <button class="btn" type="button" data-preset="fr-based">Based in France</button>
       <button class="btn" type="button" data-preset="starting">Biotechs starting a trial</button>
       <button class="btn" type="button" data-preset="academic">Recruiting academic centres</button>
       <button class="btn" type="button" data-preset="new">New sponsors</button>
@@ -265,7 +275,7 @@ footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);
 
   <footer>
     Source: CTIS register (EU Clinical Trials Information System), extracted on 4 November 2026: 10,000 trials, <span id="footSponsors"></span> sponsors after merging duplicates (spelling variants and subsidiaries of the same pharma group; MSD and Merck KGaA are kept separate).<br>
-    Filters apply to trials: each sponsor is ranked on its matching trials only. The fit score (0-100) favours small sponsors, trials that are starting, new sponsors, multi-country or early-phase work and a presence in France; open a sponsor to see how its score is built. It is a prioritisation heuristic, not an official ranking.
+    Filters apply to trials: each sponsor is ranked on its matching trials only. The fit score (0-100) favours small sponsors, trials that are starting, new sponsors, multi-country or early-phase work and a presence in France; open a sponsor to see how its score is built. Sponsor headquarters, third parties and contacts come from the public CTIS API, for target sponsors only. It is a prioritisation heuristic, not an official ranking.
   </footer>
 </div>
 
@@ -318,14 +328,19 @@ fill($('fPhase'), DB.phase.map((p,i)=>[i,p]).sort((a,b)=>PHASE_ORDER.indexOf(a[1
 fill($('fStatus'), DB.status.map((s,i)=>[i,`${sName(i)} (${fmt(sc[i]||0)})`]).sort((a,b)=>(sc[b[0]]||0)-(sc[a[0]]||0)));
 const typeCount = {}; S.forEach(s=>typeCount[s.type]=(typeCount[s.type]||0)+1);
 fill($('fType'), Object.keys(typeCount).sort((a,b)=>typeCount[b]-typeCount[a]).map(t=>[t,`${tName(t)} (${fmt(typeCount[t])})`]));
+const hqCount = {}; S.forEach(s=>{ if(s.hq) hqCount[s.hq]=(hqCount[s.hq]||0)+1; });
+fill($('fHQ'), Object.keys(hqCount).sort((a,b)=>hqCount[b]-hqCount[a]||a.localeCompare(b)).map(c=>[c,`${c} (${fmt(hqCount[c])})`]));
+const HAS_DETAILS = Object.keys(hqCount).length>0;
+if(!HAS_DETAILS){ $('fHQ').closest('.field').hidden = true; $('inhouseLabel').hidden = true; document.querySelector('[data-preset="fr-based"]').hidden = true; }
+if(DB.private) $('privateNote').hidden = false;
 const years = [...new Set(T.map(t=>t[YR]).filter(Boolean))].sort();
 fill($('fYearFrom'), years.map(y=>[y,y])); fill($('fYearTo'), years.map(y=>[y,y]));
 
 // ---------- read filters ----------
-const SELECTS = ['fCountry','fArea','fPhase','fStatus','fType','fYearFrom','fYearTo','fAuth','fUpdated','fPop','fSize','fRegion','fNCountries','fResults'];
+const SELECTS = ['fHQ','fCountry','fArea','fPhase','fStatus','fType','fYearFrom','fYearTo','fAuth','fUpdated','fPop','fSize','fRegion','fNCountries','fResults'];
 const NUMBERS = ['fProduct','fMinTrials','fMinActive','fMaxTrials'];
-const CHECKS = ['cSmall','cNew','cPharma','cAcademic','cFih','cBe','cMerged'];
-const LABELS = {cSmall:'≤ 10 trials',cNew:'New sponsors',fAuth:'Authorised in the last',fProduct:'Product',fCountry:'Country',fArea:'Area',fPhase:'Phase',fStatus:'Status',fType:'Type',fYearFrom:'Authorised from',fYearTo:'Authorised until',fUpdated:'Updated in the last',fPop:'Population',fSize:'Size',fRegion:'Scope',fNCountries:'Countries per trial',fResults:'Results',fMinTrials:'Min. trials',fMinActive:'Min. recruiting',fMaxTrials:'Max. trials',cPharma:'Pharma / industry',cAcademic:'Academic / hospitals',cFih:'First administration to humans',cBe:'Bioequivalence',cMerged:'Merged groups'};
+const CHECKS = ['cSmall','cInhouse','cNew','cPharma','cAcademic','cFih','cBe','cMerged'];
+const LABELS = {fHQ:'Based in',cInhouse:'No CRO listed',cSmall:'≤ 10 trials',cNew:'New sponsors',fAuth:'Authorised in the last',fProduct:'Product',fCountry:'Country',fArea:'Area',fPhase:'Phase',fStatus:'Status',fType:'Type',fYearFrom:'Authorised from',fYearTo:'Authorised until',fUpdated:'Updated in the last',fPop:'Population',fSize:'Size',fRegion:'Scope',fNCountries:'Countries per trial',fResults:'Results',fMinTrials:'Min. trials',fMinActive:'Min. recruiting',fMaxTrials:'Max. trials',cPharma:'Pharma / industry',cAcademic:'Academic / hospitals',cFih:'First administration to humans',cBe:'Bioequivalence',cMerged:'Merged groups'};
 const range = v => { const [a,b] = v.split('-'); return [a===''?-Infinity:+a, b===''||b===undefined?Infinity:+b]; };
 
 function readFilters(){
@@ -400,10 +415,18 @@ function fitScore(s, tr){
   why.push([multi ? 'Runs a multi-country trial' : 'Single-country trials only', multi?10:0]);
   const early = tr.some(i=>EARLY.has(T[i][PH]));
   why.push([early ? 'Early or mid phase (I, I/II or II)' : 'Late phase only', early?5:0]);
-  const part = tr.reduce((a,i)=>a+(T[i][PART]<=100000?T[i][PART]:0),0);
-  why.push([part>=100 ? `${fmt(part)} participants in total` : 'Fewer than 100 participants', part>=100?5:0]);
+  if(s.tp){
+    // known from the CTIS API: a sponsor that hands its trial to CROs rarely picks the tools itself
+    const n = s.tpn||0;
+    why.push([n ? `${n} third part${n>1?'ies':'y'} (e.g. CRO) on its latest trial` : 'No CRO or third party listed on its latest trial', n?0:5]);
+  } else {
+    const part = tr.reduce((a,i)=>a+(T[i][PART]<=100000?T[i][PART]:0),0);
+    why.push([part>=100 ? `${fmt(part)} participants in total` : 'Fewer than 100 participants', part>=100?5:0]);
+  }
   const fr = tr.some(i=>T[i][CO].includes(FRANCE));
-  why.push([fr ? 'Has a trial in France' : 'No trial in France', fr?25:0]);
+  if(s.hq==='France') why.push(['Based in France', 25]);
+  else if(s.hq) why.push([fr ? `Based in ${s.hq}, has a trial in France` : `Based in ${s.hq}`, fr?10:0]);
+  else why.push([fr ? 'Has a trial in France (headquarters unknown)' : 'No trial in France', fr?15:0]);
   return {fit: why.reduce((a,w)=>a+w[1],0), why};
 }
 const enc = encodeURIComponent;
@@ -426,6 +449,8 @@ function compute(){
     if(f.cAcademic && !ACADEMIC.has(s.type)) continue;
     if(f.cMerged && !s.ent) continue;
     if(f.cSmall && s.t.length>10) continue;
+    if(f.fHQ && s.hq!==f.fHQ) continue;
+    if(f.cInhouse && !(s.tp && !s.tpn)) continue;
     if(f.cNew && !(s.first && s.first>=NEW_CUTOFF)) continue;
     const tr = any ? s.t.filter(i=>m[i]) : s.t;
     if(tr.length<minT || tr.length>maxT) continue;
@@ -498,7 +523,7 @@ function render(){
   $('tbody').innerHTML = rows.length ? rows.map((v,k)=>{
     return `<tr tabindex="0" data-i="${(page-1)*size+k}">
       <td><div class="score-pill">${v.fit} <span class="score-bar"><i style="width:${v.fit}%"></i></span></div></td>
-      <td><div class="sponsor-name">${esc(v.name)}${v.s.ent?` <span class="tag" title="${esc(v.s.ent.map(e=>e[0]).join(' · '))}">${v.s.ent.length} entities</span>`:''}</div></td>
+      <td><div class="sponsor-name">${esc(v.name)}${v.s.ent?` <span class="tag" title="${esc(v.s.ent.map(e=>e[0]).join(' · '))}">${v.s.ent.length} entities</span>`:''}</div>${v.s.hq?`<div class="loc">${esc([v.s.city,v.s.hq].filter(Boolean).join(', '))}</div>`:''}</td>
       <td><span class="badge ${v.s.ph?'pharma':'other'}">${esc(short(tName(v.type),26))}</span></td>
       <td class="num">${v.n}</td>
       <td class="num"><span class="active-pill ${v.active===0?'zero':''}">${v.active}</span></td>
@@ -519,7 +544,7 @@ function openModal(v){
   const statusColor = st => st.includes('recruiting') ? 'var(--good)' : (/halted|Suspended/.test(st) ? 'var(--bad)' : 'var(--ink-soft)');
   $('modalBody').innerHTML = `
     <h2>${esc(s.name)}</h2>
-    <div class="sub">${esc(tName(s.type))} · ${fmt(s.t.length)} trial${s.t.length===1?'':'s'} in total in CTIS</div>
+    <div class="sub">${esc(tName(s.type))}${s.hq?` · ${esc([s.city,s.hq].filter(Boolean).join(', '))}`:''} · ${fmt(s.t.length)} trial${s.t.length===1?'':'s'} in total in CTIS</div>
     ${filtered?`<div class="note">Figures computed on the ${v.n} trials that match the active filters.</div>`:''}
     <div class="modal-grid">
       <div class="modal-stat"><div class="n">${v.n}</div><div class="l">Trials</div></div>
@@ -528,6 +553,8 @@ function openModal(v){
       <div class="modal-stat"><div class="n">${v.nc}</div><div class="l">Countries</div></div>
       <div class="modal-stat"><div class="n">${part?fmt(part):'—'}</div><div class="l">Participants (est.)</div></div>
     </div>
+    ${s.ct?`<div class="msec"><strong>Contacts listed in CTIS:</strong><div class="contacts">${s.ct.map(c=>`<div class="contact"><span class="ctype">${esc(c.type)}</span>${c.name?`<b>${esc(c.name)}</b>`:''}${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:''}${c.phone?`<span>${esc(c.phone)}</span>`:''}</div>`).join('')}</div></div>`:''}
+    ${s.tp?`<div class="msec"><strong>Third parties on its latest trial${s.tpn>s.tp.length?` (${s.tp.length} of ${s.tpn})`:''}:</strong><div class="tags">${s.tp.length?s.tp.map(t=>`<span class="tag">${esc(t)}</span>`).join(''):'<span class="tag">None listed</span>'}</div></div>`:''}
     <div class="msec"><strong>Find a contact:</strong><div class="links">
       <a href="${googleUrl(s.name)}" target="_blank" rel="noopener">Google</a>
       <a href="${linkedinCompanyUrl(s.name)}" target="_blank" rel="noopener">LinkedIn: company</a>
@@ -567,6 +594,7 @@ $('toggleMore').addEventListener('click', ()=>{ const m=$('moreFilters'); m.hidd
   $('toggleMore').textContent = m.hidden ? 'Show advanced filters' : 'Hide advanced filters'; $('toggleMore').setAttribute('aria-expanded', String(!m.hidden)); });
 const idxOf = (list, v) => String(list.indexOf(v));
 const PRESETS = {
+  'fr-based': ()=>{ clearAll(); $('cSmall').checked=true; $('fHQ').value='France'; },
   'starting': ()=>{ reset(); $('cPharma').checked=true; $('fAuth').value='365'; },
   'academic': ()=>{ reset(); $('cAcademic').checked=true; $('fStatus').value='rec'; },
   'new': ()=>{ reset(); $('cNew').checked=true; },
@@ -597,10 +625,12 @@ const POP = t => [t[AG]&1?'Paediatric':'', t[AG]&2?'Adults':'', t[AG]&4?'Older a
 const SUBL = ['', 'First administration to humans', 'Bioequivalence'];
 
 function sponsorsCsv(){
-  return toCsv(['Rank','Sponsor','Type','Pharma / industry','Fit score','Fit details','Matching trials','Recruiting trials','Countries','Main countries','Therapeutic areas','Phases','Last update','Total trials in CTIS','Merged entities','Latest trial on CTIS','Google search','LinkedIn company search'],
+  return toCsv(['Rank','Sponsor','Type','Pharma / industry','Fit score','Fit details','Matching trials','Recruiting trials','Countries','Main countries','Therapeutic areas','Phases','Last update','Total trials in CTIS','Merged entities','HQ city','HQ country','Third parties (latest trial)',...(DB.private?['Contacts listed in CTIS']:[]),'Latest trial on CTIS','Google search','LinkedIn company search'],
     VIEW.map((v,k)=>[k+1, v.name, tName(v.type), v.s.ph?'Yes':'No', v.fit, v.why.filter(w=>w[1]).map(w=>`${w[0]} (+${w[1]})`).join('; '), v.n, v.active, v.nc,
       topList(v.tr, CO, cName, 10), topList(v.tr, AR, aName, 5), topList(v.tr, PH, i=>DB.phase[i], 7), showDate(v.last), v.s.t.length,
       (v.s.ent||[]).map(e=>`${e[0]} (${e[1]})`).join(' | '),
+      v.s.city||'', v.s.hq||'', v.s.tp?(v.s.tpn?v.s.tp.join(' | '):'None listed'):'',
+      ...(DB.private?[(v.s.ct||[]).map(c=>[c.type+':', c.name, c.email, c.phone].filter(Boolean).join(' ')).join(' | ')]:[]),
       (()=>{ const i=[...v.tr].sort((a,b)=>T[b][UPD].localeCompare(T[a][UPD]))[0]; return i===undefined?'':ctisUrl(T[i][NUM]); })(), googleUrl(v.name), linkedinCompanyUrl(v.name)]));
 }
 function trialsCsv(){
