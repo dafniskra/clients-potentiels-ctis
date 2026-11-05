@@ -162,7 +162,7 @@ footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);
   <div class="hero-inner">
     <div class="hero-kicker">PMM-221 · Business development</div>
     <h1>Who runs clinical trials in Europe?</h1>
-    <p>Find small trial sponsors (biotechs, research centres, hospitals with 10 trials or fewer in CTIS) that run clinical trials without enterprise tools. France first: the default view shows small sponsors with at least one trial in France. The figures below follow the filters.</p>
+    <p>Find small trial sponsors (biotechs, research centres, hospitals with 10 trials or fewer in CTIS) that run clinical trials without enterprise tools. The default view shows every sponsor; use the segments or the filters to focus on small sponsors or on France. The figures below follow the filters.</p>
     <div class="kpis" id="kpis"></div>
   </div>
 </div>
@@ -212,7 +212,7 @@ footer{max-width:1180px;margin:0 auto 50px;padding:0 20px;color:var(--ink-soft);
       <div class="field"><label for="fMaxTrials">Max. matching trials</label><input type="number" id="fMaxTrials" min="1" step="1" placeholder="No limit" inputmode="numeric"></div>
     </div>
     <div class="checks">
-      <label><input type="checkbox" id="cSmall" checked> Small sponsors only (10 trials or fewer in CTIS)</label>
+      <label><input type="checkbox" id="cSmall"> Small sponsors only (10 trials or fewer in CTIS)</label>
       <label id="inhouseLabel"><input type="checkbox" id="cInhouse"> No CRO listed (runs its trial in-house)</label>
       <label><input type="checkbox" id="cNew"> New sponsors (first trial authorised in the last 2 years)</label>
       <label><input type="checkbox" id="cPharma"> Pharma / industry only</label>
@@ -578,8 +578,10 @@ const closeModal = () => $('overlay').classList.remove('open');
 
 // ---------- events ----------
 function clearAll(){ $('search').value=''; [...SELECTS,...NUMBERS].forEach(id=>$(id).value=''); CHECKS.forEach(id=>$(id).checked=false); }
-// default view: small sponsors with a trial in France
-function reset(){ clearAll(); $('cSmall').checked=true; $('fCountry').value=String(FRANCE); }
+// default view: no filter preselected
+function reset(){ clearAll(); }
+// base of the France segments: small sponsors with a trial in France
+function frSmall(){ clearAll(); $('cSmall').checked=true; $('fCountry').value=String(FRANCE); }
 const rerender = () => { page=1; render(); };
 let timer; $('search').addEventListener('input', ()=>{ clearTimeout(timer); timer=setTimeout(rerender,150); });
 [...SELECTS,...NUMBERS,...CHECKS].forEach(id=>$(id).addEventListener(NUMBERS.includes(id)?'input':'change', rerender));
@@ -595,10 +597,10 @@ $('toggleMore').addEventListener('click', ()=>{ const m=$('moreFilters'); m.hidd
 const idxOf = (list, v) => String(list.indexOf(v));
 const PRESETS = {
   'fr-based': ()=>{ clearAll(); $('cSmall').checked=true; $('fHQ').value='France'; },
-  'starting': ()=>{ reset(); $('cPharma').checked=true; $('fAuth').value='365'; },
-  'academic': ()=>{ reset(); $('cAcademic').checked=true; $('fStatus').value='rec'; },
-  'new': ()=>{ reset(); $('cNew').checked=true; },
-  'multi': ()=>{ reset(); $('fNCountries').value='2-'; },
+  'starting': ()=>{ frSmall(); $('cPharma').checked=true; $('fAuth').value='365'; },
+  'academic': ()=>{ frSmall(); $('cAcademic').checked=true; $('fStatus').value='rec'; },
+  'new': ()=>{ frSmall(); $('cNew').checked=true; },
+  'multi': ()=>{ frSmall(); $('fNCountries').value='2-'; },
   'europe': ()=>{ clearAll(); $('cSmall').checked=true; },
 };
 document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click', ()=>{ PRESETS[b.dataset.preset](); rerender(); }));

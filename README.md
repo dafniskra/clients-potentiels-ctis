@@ -19,7 +19,7 @@ src/template.html               Dashboard template (HTML, CSS, JavaScript)
 
 ## Features
 
-- **Default view**: small sponsors (10 trials or fewer in CTIS) with at least one trial in France, ranked by fit score.
+- **Default view**: all sponsors, no filter preselected, ranked by fit score. The segments narrow it down to small sponsors (10 trials or fewer) in France or Europe.
 - **KPIs and charts** recomputed from the filters: sponsors, trials, recruiting trials, countries covered; top prospects, top countries, therapeutic areas, phases.
 - **Trial-level filters**: each sponsor is re-ranked on its matching trials only.
   - product or molecule (several terms separated by commas; brand names and molecules are linked);
